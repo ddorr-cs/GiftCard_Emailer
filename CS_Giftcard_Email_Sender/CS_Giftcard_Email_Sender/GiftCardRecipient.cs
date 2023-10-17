@@ -15,5 +15,7 @@ namespace CS_Giftcard_Email_Sender
         public string Note { get; set; }
         public DateTime CreatedDate { get; set; }
         public string Sender { get; set; }
+        public string LocationName { get; set; }
+        public string Culture { get; set; }
     }
 }

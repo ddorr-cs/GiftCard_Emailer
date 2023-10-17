@@ -6,7 +6,8 @@ using System.Threading.Tasks;
 
 namespace CS_Giftcard_Email_Sender
 {
-    internal class GiftCardCheckDetail
+    
+    internal class GiftCardCheckDetail : GiftCardRecipient
     {
         public int CheckDetailID { get; set; }
         public int CheckID { get; set; }
