@@ -21,7 +21,7 @@ namespace CS_Giftcard_Email_Sender
         public void SendGiftCardViaEmail()
         {
 
-            var useSendGridSmtpForGiftCards = false;
+            var useSendGridSmtpForGiftCards = _giftCardEmailerRequest.SendGridSettings.UseSendGridSmtpForGiftCards;
 
             if (!useSendGridSmtpForGiftCards)
             {
@@ -37,12 +37,13 @@ namespace CS_Giftcard_Email_Sender
             }
             else
             {
+                // need to fix this method
                 var mailMessage = new GiftCardTemplateHelperSendGrid(_giftCardEmailerRequest.GiftCardTemplateRequest).GetMailMessage();// this essentially gets the body of the email
                 // Logger.Log("About to send a $" + Math.Round(_giftCardEmailerRequest.GiftCardTemplateRequest.Amount, 2) + " gift card to " + mailMessage.To);
                 using (SmtpClient client = new SmtpClient("smtp.sendgrid.net"))
                 {
-                    var sendGridUsername = "";
-                    var sendGridPassword = "";
+                    var sendGridUsername = _giftCardEmailerRequest.SendGridSettings.SendGridUsername;
+                    var sendGridPassword = _giftCardEmailerRequest.SendGridSettings.SendGridPassword;
                     client.Port = 587;
                     client.Credentials = new NetworkCredential(sendGridUsername, sendGridPassword);
                     client.Send(mailMessage);

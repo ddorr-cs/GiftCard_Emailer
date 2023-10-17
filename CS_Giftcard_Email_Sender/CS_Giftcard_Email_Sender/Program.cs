@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Net.Mail;
 using System.Net;
 using Newtonsoft.Json;
-
+using System.Linq;
 
 // Using Windows Authentication (Integrated Security=True)
 string connectionString = @"Data Source=.;Initial Catalog=clubspeedv8;Integrated Security=True;MultipleActiveResultSets=True";
@@ -32,6 +32,7 @@ using (SqlConnection connection = new SqlConnection(connectionString))
     }
 
 
+    // Get list of gift card check details
     var giftCardDetailsList = new List<GiftCardCheckDetail>();
 
     string query = "";
@@ -98,7 +99,7 @@ using (SqlConnection connection = new SqlConnection(connectionString))
     }
 
 
-
+    // Begin handling email creation and sending for each gift card
     if (giftCardDetailsList.Count < 1)
     {
         Console.WriteLine($"No giftcards were found for checkID: {value}");
@@ -172,6 +173,60 @@ using (SqlConnection connection = new SqlConnection(connectionString))
                         RecipientCopyList.Add(r.Trim());
                     }                    
                 }
+            }
+
+
+            // Get sender's email
+            string senderEmail = "";
+
+            query = $@"select SettingValue from ControlPanel where SettingName like 'EmailWelcomeFrom'";
+            command = new SqlCommand(query, connection);
+
+            using (SqlDataReader reader = command.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    var temp_senderEmail = (string)reader["SettingValue"];
+
+                    senderEmail = temp_senderEmail;
+                }
+            }
+            if (senderEmail.Length < 3)
+            {
+                senderEmail = "support@clubspeed.com";
+            }
+
+
+            // Get SendGrid Settings, If any
+            SendGridSettings SendGridSettings = new SendGridSettings();
+
+            query = $@"SELECT TOP 1
+                    (SELECT TOP 1 SettingValue FROM ControlPanel WHERE SettingName = 'UseSendGridSmtpForGiftCards') AS UseSendGridSmtpForGiftCards,
+                    (SELECT TOP 1 SettingValue FROM ControlPanel WHERE SettingName = 'SendGridUsername') AS SendGridUsername,
+                    (SELECT TOP 1 SettingValue FROM ControlPanel WHERE SettingName = 'SendGridPassword') AS SendGridPassword
+                    FROM ControlPanel";
+            command = new SqlCommand(query, connection);
+
+            using (SqlDataReader reader = command.ExecuteReader())
+            {
+
+                while (reader.Read())
+
+                {
+                    var temp_SendGridSettings = new SendGridSettings()
+                    {
+                        
+                        UseSendGridSmtpForGiftCards = (string)reader["UseSendGridSmtpForGiftCards"] == "0" ? false: true,
+                        SendGridUsername = (string)reader["SendGridUsername"],
+                        SendGridPassword = (string)reader["SendGridPassword"]
+                    };
+
+                    SendGridSettings = temp_SendGridSettings;
+                }
+            }
+            if (senderEmail.Length < 3)
+            {
+                senderEmail = "support@clubspeed.com";
             }
 
 
@@ -258,6 +313,7 @@ using (SqlConnection connection = new SqlConnection(connectionString))
                 GiftCardId = giftcard_detail.G_CustID.ToString(),
                 DefaultDriveLetter = "C",//_giftCardItemDetails.GiftCardSettings.DefaultDriveLetter,
                 SerializedSMTP = serializedSMTP,
+                SendGridSettings = SendGridSettings,
                 GiftCardTemplateRequest = new GiftCardTemplateRequest()
                 {
                     Amount = giftcard_detail.G_Points.Value,
@@ -267,7 +323,7 @@ using (SqlConnection connection = new SqlConnection(connectionString))
                     Template = giftcardEmailTemplate.TemplateBody,
                     EmailSubjectTemplate = giftcardEmailTemplate.TemplateSubject,
                     RecipientEmailAddress = giftcard_detail.RecipientEmailAddress,
-                    FromEmailAddress = giftcard_detail.Sender, //???
+                    FromEmailAddress = senderEmail,//giftcard_detail.Sender, //???
                     GiftCardFilePath = @"C:\clubspeedapps\assets\GiftCards\" + DateTime.Now.Month + DateTime.Now.Day + DateTime.Now.Year + DateTime.Now.Hour + DateTime.Now.Minute + DateTime.Now.Second + DateTime.Now.Millisecond + ".png",
                     RecipientCopies = RecipientCopyList,
                     GiftCardId = giftcard_detail.G_CustID.ToString(),
@@ -277,7 +333,7 @@ using (SqlConnection connection = new SqlConnection(connectionString))
                     CurrencySymbol = currencySymbol.ToString()
 
                 }
-            });//.SendGiftCardViaEmail();
+            }).SendGiftCardViaEmail();
             Console.WriteLine("Pretend emails have been sent...");
         }
         
